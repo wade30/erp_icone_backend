@@ -1,0 +1,40 @@
+cat > .gitignore <<'EOF'
+# Variables d'environnement et secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# Bases de données locales et sauvegardes
+*.sqlite3
+*.db
+*.dump
+*.backup
+*.bak
+
+# Fichiers temporaires
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# IDE et éditeurs
+.idea/
+.vscode/
+
+# Fichiers système
+*.log.*
+EOF

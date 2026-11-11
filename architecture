@@ -1,0 +1,24 @@
+backend/
+│
+├── users/
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── admin.py
+│
+├── finance/
+│   ├── models.py
+│   ├── serializers.py
+│   ├── views.py
+│   ├── urls.py
+│   └── admin.py
+│
+├── accounting/
+├── budgeting/
+├── institute/
+├── incubator/
+├── marketing/
+└── orientation/
+
+
