@@ -6,6 +6,9 @@ Configuration compatible avec environnement local et Docker.
 
 from pathlib import Path
 import os
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
+import dj_database_url
 
 # ============================================================
 # 1. CHEMINS DU PROJET
@@ -19,6 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ============================================================
 
 env_file = BASE_DIR / ".env"
+load_dotenv(env_file)
 
 if env_file.is_file():
     env_lines = env_file.read_text(encoding="utf-8-sig").splitlines()
@@ -177,27 +181,18 @@ WSGI_APPLICATION = "config.wsgi.application"
 # 8. BASE DE DONNEES POSTGRESQL
 # ============================================================
 
+
+# Database
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ImproperlyConfigured("DATABASE_URL is not set in environment")
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-
-        "NAME": os.environ.get("DB_NAME", "icone_db"),
-
-        "USER": os.environ.get("DB_USER", "icone_user"),
-
-        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
-
-        "HOST": os.environ.get("DB_HOST", "localhost"),
-
-        "PORT": os.environ.get("DB_PORT", "5432"),
-
-        "CONN_MAX_AGE": 60,
-
-        "CONN_HEALTH_CHECKS": True,
-    }
+    "default": dj_database_url.parse(DATABASE_URL)
 }
 
-
+DATABASES["default"]["CONN_MAX_AGE"] = 600
 # ============================================================
 # 9. VALIDATION DES MOTS DE PASSE
 # ============================================================
