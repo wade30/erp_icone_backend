@@ -1,14 +1,22 @@
 
 """
 Django settings for ERP project.
-Configuration compatible avec environnement local et Docker.
+Configuration compatible avec :
+- Développement local
+- Docker
+- Production Hostinger
+
+Sécurité CSRF, CORS, sessions et HTTPS configurables
+par variables d'environnement.
 """
 
 from pathlib import Path
 import os
-from django.core.exceptions import ImproperlyConfigured
+
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 import dj_database_url
+
 
 # ============================================================
 # 1. CHEMINS DU PROJET
@@ -22,48 +30,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ============================================================
 
 env_file = BASE_DIR / ".env"
-load_dotenv(env_file)
 
-if env_file.is_file():
-    env_lines = env_file.read_text(encoding="utf-8-sig").splitlines()
-
-    for line_number, line in enumerate(env_lines, 1):
-        line = line.strip()
-
-        if not line or line.startswith("#"):
-            continue
-
-        key, separator, value = line.partition("=")
-
-        if not separator or not key.strip():
-            raise ValueError(
-                f"Invalid entry in {env_file} at line {line_number}"
-            )
-
-        value = value.strip()
-
-        if len(value) >= 2 and value[0] == value[-1]:
-            if value[0] in ("'", '"'):
-                value = value[1:-1]
-
-        os.environ.setdefault(key.strip(), value)
+load_dotenv(env_file, override=False)
 
 
 # ============================================================
-# 3. CONFIGURATION GENERALE ET SECURITE
+# 3. FONCTIONS DE LECTURE DES VARIABLES D'ENVIRONNEMENT
 # ============================================================
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "")
-
-if not SECRET_KEY:
-    raise ValueError("La variable SECRET_KEY est obligatoire.")
-
-DEBUG = os.environ.get("DEBUG", "True").lower() in (
-    "true", "1", "yes"
-)
+def env_bool(name, default=False):
+    """
+    Convertit une variable d'environnement en booléen.
+    """
+    return (
+        os.environ.get(name, str(default))
+        .strip()
+        .lower()
+        in ("true", "1", "yes", "on")
+    )
 
 
 def get_env_list(name, default=""):
+    """
+    Convertit une variable séparée par des virgules en liste.
+    """
     return [
         value.strip()
         for value in os.environ.get(name, default).split(",")
@@ -71,20 +61,53 @@ def get_env_list(name, default=""):
     ]
 
 
+def get_env_value(name, default=None):
+    """
+    Lit une variable d'environnement et nettoie sa valeur.
+    """
+    value = os.environ.get(name, "")
+
+    if not value.strip():
+        return default
+
+    return value.strip()
+
+
+# ============================================================
+# 4. CONFIGURATION GENERALE ET SECURITE
+# ============================================================
+
+SECRET_KEY = get_env_value("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured(
+        "La variable SECRET_KEY est obligatoire."
+    )
+
+# DEBUG=True en développement.
+# DEBUG=False en production.
+DEBUG = env_bool("DEBUG", False)
+
+# Hôtes autorisés.
 ALLOWED_HOSTS = get_env_list(
     "ALLOWED_HOSTS",
     "localhost,127.0.0.1"
 )
 
+# Origines autorisées pour les requêtes CSRF.
 CSRF_TRUSTED_ORIGINS = get_env_list(
     "CSRF_TRUSTED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,"
-    "http://localhost:5174,http://127.0.0.1:5174"
+    (
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "http://localhost:5174,"
+        "http://127.0.0.1:5174"
+    )
 )
 
 
 # ============================================================
-# 4. APPLICATIONS DJANGO
+# 5. APPLICATIONS DJANGO
 # ============================================================
 
 INSTALLED_APPS = [
@@ -98,6 +121,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
 
+    # Applications ERP
     "users",
     "finance",
     "accounting",
@@ -115,7 +139,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # ============================================================
-# 5. MIDDLEWARE
+# 6. MIDDLEWARE
 # ============================================================
 
 MIDDLEWARE = [
@@ -123,6 +147,7 @@ MIDDLEWARE = [
 
     "django.contrib.sessions.middleware.SessionMiddleware",
 
+    # CORS doit être placé avant CommonMiddleware.
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.common.CommonMiddleware",
@@ -138,20 +163,44 @@ MIDDLEWARE = [
 
 
 # ============================================================
-# 6. CONFIGURATION CORS
+# 7. CONFIGURATION CORS
 # ============================================================
 
 CORS_ALLOWED_ORIGINS = get_env_list(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,"
-    "http://localhost:5174,http://127.0.0.1:5174"
+    (
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "http://localhost:5174,"
+        "http://127.0.0.1:5174"
+    )
 )
 
+# Autorise les cookies dans les requêtes cross-origin.
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 
 # ============================================================
-# 7. URLS ET TEMPLATES
+# 8. URLS ET TEMPLATES
 # ============================================================
 
 ROOT_URLCONF = "config.urls"
@@ -159,11 +208,8 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-
         "DIRS": [],
-
         "APP_DIRS": True,
-
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
@@ -178,23 +224,25 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 
 # ============================================================
-# 8. BASE DE DONNEES POSTGRESQL
+# 9. BASE DE DONNEES POSTGRESQL
 # ============================================================
 
-
-# Database
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = get_env_value("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ImproperlyConfigured("DATABASE_URL is not set in environment")
+    raise ImproperlyConfigured(
+        "DATABASE_URL est obligatoire."
+    )
 
 DATABASES = {
     "default": dj_database_url.parse(DATABASE_URL)
 }
 
 DATABASES["default"]["CONN_MAX_AGE"] = 600
+
+
 # ============================================================
-# 9. VALIDATION DES MOTS DE PASSE
+# 10. VALIDATION DES MOTS DE PASSE
 # ============================================================
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -219,6 +267,12 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": (
             "django.contrib.auth.password_validation."
+            "CommonPasswordValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
             "NumericPasswordValidator"
         ),
     },
@@ -226,7 +280,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # ============================================================
-# 10. LANGUE ET FUSEAU HORAIRE
+# 11. LANGUE ET FUSEAU HORAIRE
 # ============================================================
 
 LANGUAGE_CODE = "fr-fr"
@@ -239,7 +293,7 @@ USE_TZ = True
 
 
 # ============================================================
-# 11. FICHIERS STATIQUES ET MEDIAS
+# 12. FICHIERS STATIQUES ET MEDIAS
 # ============================================================
 
 STATIC_URL = "/static/"
@@ -252,18 +306,20 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 
 # ============================================================
-# 12. EMAIL
+# 13. EMAIL
 # ============================================================
 
 MAILERS = {
     "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
+        "BACKEND": (
+            "django.core.mail.backends.console.EmailBackend"
+        ),
     },
 }
 
 
 # ============================================================
-# 13. DJANGO REST FRAMEWORK
+# 14. DJANGO REST FRAMEWORK
 # ============================================================
 
 REST_FRAMEWORK = {
@@ -289,11 +345,10 @@ REST_FRAMEWORK = {
 
 
 # ============================================================
-# 14. CONFIGURATION DE LA COMPTABILISATION AUTOMATIQUE
+# 15. CONFIGURATION DE LA COMPTABILISATION AUTOMATIQUE
 # ============================================================
 
 ACCOUNTING_AUTOMATION = {
-
     "receipt_journal_codes": {
         "BANK": "BQ",
         "CASH": "CA",
@@ -335,22 +390,116 @@ ACCOUNTING_AUTOMATION = {
 
 
 # ============================================================
-# 15. SECURITE HTTPS (ACTIVATION EN PRODUCTION)
+# 16. SECURITE HTTPS ET COOKIES
 # ============================================================
 
-SECURE_SSL_REDIRECT = (
-    os.environ.get("SECURE_SSL_REDIRECT", "False").lower()
-    in ("true", "1", "yes")
+# HTTPS obligatoire en production.
+SECURE_SSL_REDIRECT = env_bool(
+    "SECURE_SSL_REDIRECT",
+    not DEBUG
 )
 
-SESSION_COOKIE_SECURE = not DEBUG
+# Cookies sécurisés en HTTPS en production.
+SESSION_COOKIE_SECURE = env_bool(
+    "SESSION_COOKIE_SECURE",
+    not DEBUG
+)
 
-CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = env_bool(
+    "CSRF_COOKIE_SECURE",
+    not DEBUG
+)
 
-if os.environ.get("USE_HTTPS_PROXY", "False").lower() in (
-    "true", "1", "yes"
-):
+# Le frontend doit pouvoir lire le cookie CSRF.
+CSRF_COOKIE_HTTPONLY = False
+
+# Le cookie de session reste inaccessible au JavaScript.
+SESSION_COOKIE_HTTPONLY = True
+
+# Frontend et API sont des sous-domaines du même site.
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Domaine partagé uniquement pour le cookie CSRF.
+# En développement : aucun domaine partagé.
+# En production : .naatangue-impact.com par défaut.
+default_csrf_domain = (
+    None if DEBUG else ".naatangue-impact.com"
+)
+
+CSRF_COOKIE_DOMAIN = get_env_value(
+    "CSRF_COOKIE_DOMAIN",
+    default_csrf_domain
+)
+
+# Le cookie de session reste limité au domaine API.
+SESSION_COOKIE_DOMAIN = None
+
+# Durée des cookies.
+CSRF_COOKIE_AGE = 60 * 60 * 24 * 7
+
+# Sécurité HTTP.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+X_FRAME_OPTIONS = "DENY"
+
+SECURE_REFERRER_POLICY = "same-origin"
+
+# Reverse proxy HTTPS Hostinger.
+if env_bool("USE_HTTPS_PROXY", not DEBUG):
     SECURE_PROXY_SSL_HEADER = (
         "HTTP_X_FORWARDED_PROTO",
         "https"
     )
+
+# HSTS en production.
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+
+
+# ============================================================
+# 17. PARAMETRES DE SESSION
+# ============================================================
+
+SESSION_COOKIE_AGE = 60 * 60 * 8
+
+SESSION_SAVE_EVERY_REQUEST = True
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+
+# ============================================================
+# 18. PARAMETRES CSRF
+# ============================================================
+
+CSRF_USE_SESSIONS = False
+
+CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
+
+
+# ============================================================
+# 19. VERIFICATIONS DE CONFIGURATION
+# ============================================================
+
+if not DEBUG:
+    if not ALLOWED_HOSTS:
+        raise ImproperlyConfigured(
+            "ALLOWED_HOSTS doit être configuré en production."
+        )
+
+    if not CORS_ALLOWED_ORIGINS:
+        raise ImproperlyConfigured(
+            "CORS_ALLOWED_ORIGINS doit être configuré en production."
+        )
+
+    if not CSRF_TRUSTED_ORIGINS:
+        raise ImproperlyConfigured(
+            "CSRF_TRUSTED_ORIGINS doit être configuré en production."
+        )
+
+    if not CSRF_COOKIE_SECURE or not SESSION_COOKIE_SECURE:
+        raise ImproperlyConfigured(
+            "Les cookies doivent être sécurisés en production."
+        )
