@@ -1,6 +1,11 @@
+
 from django.contrib.auth import authenticate, login, logout
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.http import require_GET
+
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -13,6 +18,22 @@ from .serializers import (
 )
 
 
+# ============================================================
+# 1. RÉCUPÉRATION DU TOKEN CSRF
+# ============================================================
+
+@ensure_csrf_cookie
+@require_GET
+def csrf_token_view(request):
+    return JsonResponse({
+        "csrfToken": get_token(request)
+    })
+
+
+# ============================================================
+# 2. INSCRIPTION
+# ============================================================
+
 @method_decorator(csrf_protect, name="dispatch")
 class RegistrationView(APIView):
     permission_classes = [AllowAny]
@@ -23,6 +44,7 @@ class RegistrationView(APIView):
         serializer = UserRegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
         return Response(
             {
                 "detail": (
@@ -34,6 +56,10 @@ class RegistrationView(APIView):
         )
 
 
+# ============================================================
+# 3. CONNEXION
+# ============================================================
+
 @method_decorator(csrf_protect, name="dispatch")
 class LoginView(APIView):
     authentication_classes = []
@@ -42,13 +68,22 @@ class LoginView(APIView):
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
-        if not isinstance(username, str) or not isinstance(password, str):
+
+        if (
+            not isinstance(username, str)
+            or not isinstance(password, str)
+        ):
             return Response(
                 {"detail": "Identifiant ou mot de passe invalide."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user = authenticate(request, username=username, password=password)
+        user = authenticate(
+            request,
+            username=username,
+            password=password,
+        )
+
         if user is None:
             return Response(
                 {"detail": "Identifiant ou mot de passe invalide."},
@@ -56,14 +91,20 @@ class LoginView(APIView):
             )
 
         login(request, user)
+
         return Response(status=status.HTTP_200_OK)
 
+
+# ============================================================
+# 4. UTILISATEUR CONNECTÉ
+# ============================================================
 
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
+
         return Response(
             {
                 "id": user.id,
@@ -85,25 +126,36 @@ class CurrentUserView(APIView):
             data=request.data,
             partial=True,
         )
+
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
+        user = request.user
+
         return Response({
-            "id": request.user.id,
-            "username": request.user.username,
-            "email": request.user.email,
-            "first_name": request.user.first_name,
-            "last_name": request.user.last_name,
-            "role": request.user.role,
-            "service": request.user.service,
-            "is_staff": request.user.is_staff,
-            "telephone": request.user.telephone,
-            "fonction": request.user.fonction,
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": user.role,
+            "service": user.service,
+            "is_staff": user.is_staff,
+            "telephone": user.telephone,
+            "fonction": user.fonction,
         })
 
+
+# ============================================================
+# 5. DÉCONNEXION
+# ============================================================
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         logout(request)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
