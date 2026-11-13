@@ -458,6 +458,9 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_PRELOAD = False
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://erp-icone-frontend.vercel.app",
+]
 
 # ============================================================
 # 17. PARAMETRES DE SESSION
