@@ -1,13 +1,12 @@
 
 """
 Django settings for ERP project.
-Configuration compatible avec :
+Compatible avec :
 - Développement local
 - Docker
 - Production Hostinger
 
-Sécurité CSRF, CORS, sessions et HTTPS configurables
-par variables d'environnement.
+Sécurité CSRF, CORS, sessions et HTTPS configurables.
 """
 
 from pathlib import Path
@@ -30,18 +29,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ============================================================
 
 env_file = BASE_DIR / ".env"
-
 load_dotenv(env_file, override=False)
 
 
 # ============================================================
-# 3. FONCTIONS DE LECTURE DES VARIABLES D'ENVIRONNEMENT
+# 3. FONCTIONS ENVIRONNEMENT
 # ============================================================
 
 def env_bool(name, default=False):
-    """
-    Convertit une variable d'environnement en booléen.
-    """
     return (
         os.environ.get(name, str(default))
         .strip()
@@ -51,9 +46,6 @@ def env_bool(name, default=False):
 
 
 def get_env_list(name, default=""):
-    """
-    Convertit une variable séparée par des virgules en liste.
-    """
     return [
         value.strip()
         for value in os.environ.get(name, default).split(",")
@@ -62,20 +54,15 @@ def get_env_list(name, default=""):
 
 
 def get_env_value(name, default=None):
-    """
-    Lit une variable d'environnement et nettoie sa valeur.
-    """
     value = os.environ.get(name, "")
-
-    if not value.strip():
-        return default
-
-    return value.strip()
+    return value.strip() if value.strip() else default
 
 
 # ============================================================
-# 4. CONFIGURATION GENERALE ET SECURITE
+# 4. CONFIGURATION GENERALE
 # ============================================================
+
+DEBUG = env_bool("DEBUG", False)
 
 SECRET_KEY = get_env_value("SECRET_KEY")
 
@@ -84,99 +71,43 @@ if not SECRET_KEY:
         "La variable SECRET_KEY est obligatoire."
     )
 
-# DEBUG=True en développement.
-# DEBUG=False en production.
-DEBUG = env_bool("DEBUG", False)
-
-# Hôtes autorisés.
 ALLOWED_HOSTS = get_env_list(
     "ALLOWED_HOSTS",
     "localhost,127.0.0.1"
 )
 
-# Origines autorisées pour les requêtes CSRF.
+
+# ============================================================
+# 5. ORIGINES FRONTEND : CORS ET CSRF
+# ============================================================
+
+LOCAL_ORIGINS = (
+    "http://localhost:5173,"
+    "http://127.0.0.1:5173,"
+    "http://localhost:5174,"
+    "http://127.0.0.1:5174"
+)
+
+PRODUCTION_FRONTEND = (
+    "https://erp-icone-frontend.vercel.app"
+)
+
 CSRF_TRUSTED_ORIGINS = get_env_list(
     "CSRF_TRUSTED_ORIGINS",
     (
-        "http://localhost:5173,"
-        "http://127.0.0.1:5173,"
-        "http://localhost:5174,"
-        "http://127.0.0.1:5174"
+        LOCAL_ORIGINS + ","
+        + PRODUCTION_FRONTEND
     )
 )
-
-
-# ============================================================
-# 5. APPLICATIONS DJANGO
-# ============================================================
-
-INSTALLED_APPS = [
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-
-    "rest_framework",
-    "corsheaders",
-
-    # Applications ERP
-    "users",
-    "finance",
-    "accounting",
-    "budgeting",
-    "institute",
-    "incubator",
-    "marketing",
-    "orientation",
-    "preschool",
-]
-
-AUTH_USER_MODEL = "users.User"
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-
-# ============================================================
-# 6. MIDDLEWARE
-# ============================================================
-
-MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-
-    "django.contrib.sessions.middleware.SessionMiddleware",
-
-    # CORS doit être placé avant CommonMiddleware.
-    "corsheaders.middleware.CorsMiddleware",
-
-    "django.middleware.common.CommonMiddleware",
-
-    "django.middleware.csrf.CsrfViewMiddleware",
-
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-
-    "django.contrib.messages.middleware.MessageMiddleware",
-
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-]
-
-
-# ============================================================
-# 7. CONFIGURATION CORS
-# ============================================================
 
 CORS_ALLOWED_ORIGINS = get_env_list(
     "CORS_ALLOWED_ORIGINS",
     (
-        "http://localhost:5173,"
-        "http://127.0.0.1:5173,"
-        "http://localhost:5174,"
-        "http://127.0.0.1:5174"
+        LOCAL_ORIGINS + ","
+        + PRODUCTION_FRONTEND
     )
 )
 
-# Autorise les cookies dans les requêtes cross-origin.
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
@@ -196,6 +127,60 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+]
+
+
+# ============================================================
+# 6. APPLICATIONS
+# ============================================================
+
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+
+    "rest_framework",
+    "corsheaders",
+
+    "users",
+    "finance",
+    "accounting",
+    "budgeting",
+    "institute",
+    "incubator",
+    "marketing",
+    "orientation",
+    "preschool",
+]
+
+AUTH_USER_MODEL = "users.User"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# ============================================================
+# 7. MIDDLEWARE
+# ============================================================
+
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+
+    "django.contrib.sessions.middleware.SessionMiddleware",
+
+    "corsheaders.middleware.CorsMiddleware",
+
+    "django.middleware.common.CommonMiddleware",
+
+    "django.middleware.csrf.CsrfViewMiddleware",
+
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+
+    "django.contrib.messages.middleware.MessageMiddleware",
+
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 
@@ -256,12 +241,6 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": (
             "django.contrib.auth.password_validation."
             "MinimumLengthValidator"
-        ),
-    },
-    {
-        "NAME": (
-            "django.contrib.auth.password_validation."
-            "CommonPasswordValidator"
         ),
     },
     {
@@ -345,7 +324,7 @@ REST_FRAMEWORK = {
 
 
 # ============================================================
-# 15. CONFIGURATION DE LA COMPTABILISATION AUTOMATIQUE
+# 15. COMPTABILISATION AUTOMATIQUE
 # ============================================================
 
 ACCOUNTING_AUTOMATION = {
@@ -390,16 +369,25 @@ ACCOUNTING_AUTOMATION = {
 
 
 # ============================================================
-# 16. SECURITE HTTPS ET COOKIES
+# 16. HTTPS ET PROXY HOSTINGER
 # ============================================================
 
-# HTTPS obligatoire en production.
 SECURE_SSL_REDIRECT = env_bool(
     "SECURE_SSL_REDIRECT",
     not DEBUG
 )
 
-# Cookies sécurisés en HTTPS en production.
+if env_bool("USE_HTTPS_PROXY", not DEBUG):
+    SECURE_PROXY_SSL_HEADER = (
+        "HTTP_X_FORWARDED_PROTO",
+        "https"
+    )
+
+
+# ============================================================
+# 17. COOKIES DE SESSION ET CSRF
+# ============================================================
+
 SESSION_COOKIE_SECURE = env_bool(
     "SESSION_COOKIE_SECURE",
     not DEBUG
@@ -410,61 +398,24 @@ CSRF_COOKIE_SECURE = env_bool(
     not DEBUG
 )
 
-# Le frontend doit pouvoir lire le cookie CSRF.
-CSRF_COOKIE_HTTPONLY = False
+# Le token est transmis par la réponse JSON CSRF.
+# JavaScript n'a donc pas besoin de lire le cookie.
+CSRF_COOKIE_HTTPONLY = True
 
-# Le cookie de session reste inaccessible au JavaScript.
 SESSION_COOKIE_HTTPONLY = True
 
-# Frontend et API sont des sous-domaines du même site.
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
+# Vercel et Hostinger sont des sites différents.
+# None est nécessaire pour les cookies cross-site.
+SESSION_COOKIE_SAMESITE = "None"
 
-# Domaine partagé uniquement pour le cookie CSRF.
-# En développement : aucun domaine partagé.
-# En production : .naatangue-impact.com par défaut.
-default_csrf_domain = (
-    None if DEBUG else ".naatangue-impact.com"
-)
+CSRF_COOKIE_SAMESITE = "None"
 
-CSRF_COOKIE_DOMAIN = get_env_value(
-    "CSRF_COOKIE_DOMAIN",
-    default_csrf_domain
-)
+# Cookies limités au domaine de l'API.
+CSRF_COOKIE_DOMAIN = None
 
-# Le cookie de session reste limité au domaine API.
 SESSION_COOKIE_DOMAIN = None
 
-# Durée des cookies.
 CSRF_COOKIE_AGE = 60 * 60 * 24 * 7
-
-# Sécurité HTTP.
-SECURE_CONTENT_TYPE_NOSNIFF = True
-
-X_FRAME_OPTIONS = "DENY"
-
-SECURE_REFERRER_POLICY = "same-origin"
-
-# Reverse proxy HTTPS Hostinger.
-if env_bool("USE_HTTPS_PROXY", not DEBUG):
-    SECURE_PROXY_SSL_HEADER = (
-        "HTTP_X_FORWARDED_PROTO",
-        "https"
-    )
-
-# HSTS en production.
-if not DEBUG:
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SECURE_HSTS_PRELOAD = False
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://erp-icone-frontend.vercel.app",
-]
-
-# ============================================================
-# 17. PARAMETRES DE SESSION
-# ============================================================
 
 SESSION_COOKIE_AGE = 60 * 60 * 8
 
@@ -472,14 +423,25 @@ SESSION_SAVE_EVERY_REQUEST = True
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
-
-# ============================================================
-# 18. PARAMETRES CSRF
-# ============================================================
-
 CSRF_USE_SESSIONS = False
 
 CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
+
+
+# ============================================================
+# 18. SECURITE HTTP
+# ============================================================
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+X_FRAME_OPTIONS = "DENY"
+
+SECURE_REFERRER_POLICY = "same-origin"
+
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
 
 
 # ============================================================
@@ -487,6 +449,7 @@ CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 # ============================================================
 
 if not DEBUG:
+
     if not ALLOWED_HOSTS:
         raise ImproperlyConfigured(
             "ALLOWED_HOSTS doit être configuré en production."
@@ -502,7 +465,20 @@ if not DEBUG:
             "CSRF_TRUSTED_ORIGINS doit être configuré en production."
         )
 
+    if not CORS_ALLOW_CREDENTIALS:
+        raise ImproperlyConfigured(
+            "CORS_ALLOW_CREDENTIALS doit être activé."
+        )
+
     if not CSRF_COOKIE_SECURE or not SESSION_COOKIE_SECURE:
         raise ImproperlyConfigured(
             "Les cookies doivent être sécurisés en production."
+        )
+
+    if (
+        SESSION_COOKIE_SAMESITE != "None"
+        or CSRF_COOKIE_SAMESITE != "None"
+    ):
+        raise ImproperlyConfigured(
+            "SameSite=None est requis pour les cookies cross-site."
         )
