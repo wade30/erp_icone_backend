@@ -1,12 +1,20 @@
 
 """
-Django settings for ERP project.
-Compatible avec :
+Django settings for ERP ICONE.
+
+Configuration compatible avec :
 - Développement local
 - Docker
-- Production Hostinger
+- Production Coolify
+- PostgreSQL
+- Frontend React / Vite
+- Authentification par session Django
 
-Sécurité CSRF, CORS, sessions et HTTPS configurables.
+Sécurité :
+- CORS
+- CSRF
+- Cookies sécurisés
+- HTTPS derrière proxy
 """
 
 from pathlib import Path
@@ -33,16 +41,12 @@ load_dotenv(env_file, override=False)
 
 
 # ============================================================
-# 3. FONCTIONS ENVIRONNEMENT
+# 3. FONCTIONS DE CONFIGURATION ENVIRONNEMENT
 # ============================================================
 
 def env_bool(name, default=False):
-    return (
-        os.environ.get(name, str(default))
-        .strip()
-        .lower()
-        in ("true", "1", "yes", "on")
-    )
+    value = os.environ.get(name, str(default))
+    return value.strip().lower() in ("true", "1", "yes", "on")
 
 
 def get_env_list(name, default=""):
@@ -71,14 +75,22 @@ if not SECRET_KEY:
         "La variable SECRET_KEY est obligatoire."
     )
 
+
+# Domaine du backend
+BACKEND_DOMAIN = "api-icone-erp.naatangue-impact.com"
+
+# Domaine du frontend
+FRONTEND_DOMAIN = "erp-icone.naatangue-impact.com"
+
+
 ALLOWED_HOSTS = get_env_list(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1"
+    f"localhost,127.0.0.1,{BACKEND_DOMAIN}"
 )
 
 
 # ============================================================
-# 5. ORIGINES FRONTEND : CORS ET CSRF
+# 5. CONFIGURATION CORS ET CSRF
 # ============================================================
 
 LOCAL_ORIGINS = (
@@ -89,27 +101,33 @@ LOCAL_ORIGINS = (
 )
 
 PRODUCTION_FRONTEND = (
-    "https://erp-icone-frontend.vercel.app"
+    f"https://{FRONTEND_DOMAIN}"
 )
 
+DEFAULT_FRONTEND_ORIGINS = (
+    LOCAL_ORIGINS + "," + PRODUCTION_FRONTEND
+)
+
+
+# Origines autorisées pour CSRF
 CSRF_TRUSTED_ORIGINS = get_env_list(
     "CSRF_TRUSTED_ORIGINS",
-    (
-        LOCAL_ORIGINS + ","
-        + PRODUCTION_FRONTEND
-    )
+    DEFAULT_FRONTEND_ORIGINS
 )
 
+
+# Origines autorisées pour CORS
 CORS_ALLOWED_ORIGINS = get_env_list(
     "CORS_ALLOWED_ORIGINS",
-    (
-        LOCAL_ORIGINS + ","
-        + PRODUCTION_FRONTEND
-    )
+    DEFAULT_FRONTEND_ORIGINS
 )
 
+
+# Autoriser les cookies et sessions
 CORS_ALLOW_CREDENTIALS = True
 
+
+# Méthodes HTTP autorisées
 CORS_ALLOW_METHODS = [
     "DELETE",
     "GET",
@@ -119,6 +137,8 @@ CORS_ALLOW_METHODS = [
     "PUT",
 ]
 
+
+# En-têtes HTTP autorisés
 CORS_ALLOW_HEADERS = [
     "accept",
     "authorization",
@@ -131,10 +151,11 @@ CORS_ALLOW_HEADERS = [
 
 
 # ============================================================
-# 6. APPLICATIONS
+# 6. APPLICATIONS DJANGO
 # ============================================================
 
 INSTALLED_APPS = [
+    # Applications Django
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -142,9 +163,11 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
+    # API et CORS
     "rest_framework",
     "corsheaders",
 
+    # Applications ERP ICONE
     "users",
     "finance",
     "accounting",
@@ -155,6 +178,7 @@ INSTALLED_APPS = [
     "orientation",
     "preschool",
 ]
+
 
 AUTH_USER_MODEL = "users.User"
 
@@ -168,9 +192,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
 
-    "django.contrib.sessions.middleware.SessionMiddleware",
-
+    # CORS doit être placé avant CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
+
+    "django.contrib.sessions.middleware.SessionMiddleware",
 
     "django.middleware.common.CommonMiddleware",
 
@@ -190,11 +215,15 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+
         "DIRS": [],
+
         "APP_DIRS": True,
+
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
@@ -204,6 +233,7 @@ TEMPLATES = [
         },
     },
 ]
+
 
 WSGI_APPLICATION = "config.wsgi.application"
 
@@ -219,11 +249,13 @@ if not DATABASE_URL:
         "DATABASE_URL est obligatoire."
     )
 
-DATABASES = {
-    "default": dj_database_url.parse(DATABASE_URL)
-}
 
-DATABASES["default"]["CONN_MAX_AGE"] = 600
+DATABASES = {
+    "default": dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+    )
+}
 
 
 # ============================================================
@@ -369,7 +401,7 @@ ACCOUNTING_AUTOMATION = {
 
 
 # ============================================================
-# 16. HTTPS ET PROXY HOSTINGER
+# 16. HTTPS ET PROXY COOLIFY
 # ============================================================
 
 SECURE_SSL_REDIRECT = env_bool(
@@ -377,10 +409,12 @@ SECURE_SSL_REDIRECT = env_bool(
     not DEBUG
 )
 
+
+# Coolify / reverse proxy HTTPS
 if env_bool("USE_HTTPS_PROXY", not DEBUG):
     SECURE_PROXY_SSL_HEADER = (
         "HTTP_X_FORWARDED_PROTO",
-        "https"
+        "https",
     )
 
 
@@ -398,23 +432,29 @@ CSRF_COOKIE_SECURE = env_bool(
     not DEBUG
 )
 
-# Le token est transmis par la réponse JSON CSRF.
-# JavaScript n'a donc pas besoin de lire le cookie.
+
+# Le token CSRF est récupéré via la réponse JSON.
+# JavaScript n'a pas besoin de lire le cookie directement.
 CSRF_COOKIE_HTTPONLY = True
 
 SESSION_COOKIE_HTTPONLY = True
 
-# Vercel et Hostinger sont des sites différents.
-# None est nécessaire pour les cookies cross-site.
-SESSION_COOKIE_SAMESITE = "None"
 
-CSRF_COOKIE_SAMESITE = "None"
+# Les deux services sont des sous-domaines HTTPS
+# de naatangue-impact.com : ils sont same-site.
 
-# Cookies limités au domaine de l'API.
+SESSION_COOKIE_SAMESITE = "Lax"
+
+CSRF_COOKIE_SAMESITE = "Lax"
+
+
+# Cookies limités au domaine de l'API
 CSRF_COOKIE_DOMAIN = None
 
 SESSION_COOKIE_DOMAIN = None
 
+
+# Durée des cookies
 CSRF_COOKIE_AGE = 60 * 60 * 24 * 7
 
 SESSION_COOKIE_AGE = 60 * 60 * 8
@@ -438,9 +478,12 @@ X_FRAME_OPTIONS = "DENY"
 
 SECURE_REFERRER_POLICY = "same-origin"
 
+
 if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000
+
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+
     SECURE_HSTS_PRELOAD = False
 
 
@@ -476,9 +519,10 @@ if not DEBUG:
         )
 
     if (
-        SESSION_COOKIE_SAMESITE != "None"
-        or CSRF_COOKIE_SAMESITE != "None"
+        SESSION_COOKIE_SAMESITE != "Lax"
+        or CSRF_COOKIE_SAMESITE != "Lax"
     ):
         raise ImproperlyConfigured(
-            "SameSite=None est requis pour les cookies cross-site."
+            "SameSite=Lax est attendu pour les sous-domaines "
+            "HTTPS de naatangue-impact.com."
         )
