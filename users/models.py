@@ -1,16 +1,8 @@
-import uuid
-
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
 class User(AbstractUser):
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-    )
-
     class Role(models.TextChoices):
         SECRETARY = "SECRETARY", "Secrétaire de direction"
         DIRECTOR = "DIRECTOR", "Direction générale"
