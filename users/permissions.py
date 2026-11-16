@@ -13,11 +13,13 @@ LEADERSHIP_ROLES = {
 }
 
 FULL_ACCESS_ROLES = {
+    "ADMINISTRATOR",
     "DIRECTOR",
     "PDG",
 }
 
 GLOBAL_READ_ROLES = {
+    "ADMINISTRATOR",
     "SECRETARY",
     "DIRECTOR",
     "PDG",
@@ -58,6 +60,19 @@ FINANCE_SERVICES = {
 # ============================================================
 
 ROLE_PERMISSIONS = {
+
+    "ADMINISTRATOR": {
+        "*": {
+            "read",
+            "create",
+            "update",
+            "delete",
+            "approve",
+            "pay",
+            "post",
+            "submit",
+        }
+    },
 
     "DIRECTOR": {
         "*": {
@@ -523,8 +538,11 @@ class ERPModulePermission(BasePermission):
 
         if module == "users":
             return (
-                getattr(user, "is_staff", False)
-                and role != "FINANCE"
+                role == "ADMINISTRATOR"
+                or (
+                    getattr(user, "is_staff", False)
+                    and role != "FINANCE"
+                )
             )
 
         if not can_access_module(

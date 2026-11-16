@@ -245,6 +245,22 @@ class ERPModulePermissionTests(SimpleTestCase):
                     self.make_view(action, "users"),
                 ))
 
+    def test_administrator_can_access_all_modules_and_manage_users(self):
+        administrator = self.make_user("ADMINISTRATOR")
+        request = self.make_request(administrator)
+
+        for action, module in (
+            ("list", "marketing"),
+            ("create", "finance"),
+            ("partial_update", "accounting"),
+            ("destroy", "users"),
+        ):
+            with self.subTest(action=action, module=module):
+                self.assertTrue(self.permission.has_permission(
+                    request,
+                    self.make_view(action, module),
+                ))
+
     def test_service_object_access_is_checked(self):
         request = self.make_request(
             self.make_user("STAFF", service="INSTITUTE")
