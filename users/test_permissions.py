@@ -19,10 +19,18 @@ class ERPModulePermissionTests(SimpleTestCase):
     def setUp(self):
         self.permission = ERPModulePermission()
 
-    def make_user(self, role=None, service="GENERAL", active=True, authenticated=True):
+    def make_user(
+        self,
+        role=None,
+        service="GENERAL",
+        active=True,
+        authenticated=True,
+        is_staff=False,
+    ):
         return SimpleNamespace(
             is_authenticated=authenticated,
             is_active=active,
+            is_staff=is_staff,
             role=role,
             service=service,
         )
@@ -48,12 +56,14 @@ class ERPModulePermissionTests(SimpleTestCase):
         method="GET",
         data=None,
         service_field=None,
+        is_staff=False,
     ):
         user = self.make_user(
             role=role,
             service=service,
             active=active,
             authenticated=authenticated,
+            is_staff=is_staff,
         )
         request = self.make_request(user, method=method, data=data)
         view = self.make_view(action, module, service_field)
@@ -216,6 +226,24 @@ class ERPModulePermissionTests(SimpleTestCase):
         self.assertFalse(self.check_permission(
             "DIRECTOR", "unknown_action", "finance"
         ))
+
+    def test_staff_members_except_finance_can_manage_users(self):
+        self.assertFalse(self.check_permission(
+            "STAFF", "list", "users"
+        ))
+        self.assertFalse(self.check_permission(
+            "FINANCE", "list", "users", is_staff=True
+        ))
+
+        staff_user = self.make_user("STAFF", is_staff=True)
+        request = self.make_request(staff_user)
+
+        for action in ("list", "create", "destroy"):
+            with self.subTest(action=action):
+                self.assertTrue(self.permission.has_permission(
+                    request,
+                    self.make_view(action, "users"),
+                ))
 
     def test_service_object_access_is_checked(self):
         request = self.make_request(

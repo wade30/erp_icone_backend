@@ -41,3 +41,6 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
     }
 }
+
+
+Redéployez le backend et le frontend, puis lancez python manage.py migrate --noinput dans le conteneur Coolify. Cela ne convertira pas les UUID existants, mais appliquera les migrations en attente et créera les tables nécessaires. Attention : cette correction suppose que les autres environnements utilisent aussi des UUID pour les utilisateurs; la migration initiale a été ajustée pour refléter le schéma déjà appliqué chez vous.

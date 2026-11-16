@@ -419,7 +419,7 @@ class CashExpenseSerializer(serializers.ModelSerializer):
 class ExpenseRequestSerializer(serializers.ModelSerializer):
 
     requested_by = serializers.StringRelatedField(read_only=True)
-    requested_by_id = serializers.IntegerField(
+    requested_by_id = serializers.UUIDField(
         source="requested_by.id",
         read_only=True,
     )

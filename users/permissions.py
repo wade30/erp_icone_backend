@@ -521,6 +521,12 @@ class ERPModulePermission(BasePermission):
         if not module or not action:
             return False
 
+        if module == "users":
+            return (
+                getattr(user, "is_staff", False)
+                and role != "FINANCE"
+            )
+
         if not can_access_module(
             user,
             module,
