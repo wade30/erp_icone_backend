@@ -40,6 +40,12 @@ class PreschoolAccessTests(TestCase):
             role="SERVICE_MANAGER",
             service="PRESCHOOL",
         )
+        self.administrator = User.objects.create_user(
+            username="administrator",
+            password="test-password",
+            role="ADMINISTRATOR",
+            service="GENERAL",
+        )
         self.classroom = Classroom.objects.create(
             name="Petite section A",
             teacher=self.teacher,
@@ -171,6 +177,16 @@ class PreschoolAccessTests(TestCase):
         children = self.client.get("/api/preschool/children/")
         self.assertEqual(children.status_code, 200)
         self.assertEqual(len(children.data["results"]), 2)
+
+    def test_administrator_can_read_preschool_data(self):
+        self.client.force_authenticate(self.administrator)
+
+        children = self.client.get("/api/preschool/children/")
+        school_years = self.client.get("/api/preschool/school-years/")
+
+        self.assertEqual(children.status_code, 200)
+        self.assertEqual(len(children.data["results"]), 2)
+        self.assertEqual(school_years.status_code, 200)
 
     def test_teacher_submits_student_justification_for_manager_review(self):
         attendance = Attendance.objects.create(

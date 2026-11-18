@@ -348,6 +348,14 @@ def can_manage_operational_request(user, view, action):
 # ============================================================
 
 def can_access_module(user, module, action, view):
+    if module == "calendar":
+        if action == "read":
+            return True
+
+        return (
+            action in {"create", "update", "delete"}
+            and can_manage_calendar(user)
+        )
 
     operational_permission = can_manage_operational_request(
         user,
@@ -365,6 +373,18 @@ def can_access_module(user, module, action, view):
     )
 
     return action in allowed_actions
+
+
+def can_manage_calendar(user):
+    return (
+        get_user_role(user) in {
+            "SECRETARY",
+            "ADMINISTRATOR",
+            "DIRECTOR",
+            "PDG",
+        }
+        or getattr(user, "is_staff", False)
+    )
 
 
 # ============================================================
@@ -545,6 +565,9 @@ class ERPModulePermission(BasePermission):
                 )
             )
 
+        if module == "calendar":
+            return can_access_module(user, module, action, view)
+
         if not can_access_module(
             user,
             module,
@@ -687,6 +710,12 @@ class ERPModulePermission(BasePermission):
 
         if not module or not action:
             return False
+
+        if module == "calendar":
+            return (
+                action == "read"
+                or can_manage_calendar(user)
+            )
 
         if not can_access_module(
             user,

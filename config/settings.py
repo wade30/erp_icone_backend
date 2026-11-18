@@ -177,6 +177,7 @@ INSTALLED_APPS = [
     "marketing",
     "orientation",
     "preschool",
+    "communications",
 ]
 
 

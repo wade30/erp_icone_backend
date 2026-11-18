@@ -1,5 +1,3 @@
-import uuid
-
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -31,7 +29,7 @@ class RegistrationTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         user = User.objects.get(username="newmember")
-        self.assertIsInstance(user.pk, uuid.UUID)
+        self.assertIsInstance(user.pk, int)
         self.assertFalse(user.is_active)
         self.assertFalse(user.is_staff)
         self.assertEqual(user.role, User.Role.STAFF)

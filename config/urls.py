@@ -32,4 +32,5 @@ urlpatterns = [
     path("api/marketing/", include("marketing.urls")),
     path("api/orientation/", include("orientation.urls")),
     path("api/preschool/", include("preschool.urls")),
+    path("api/communications/", include("communications.urls")),
 ]

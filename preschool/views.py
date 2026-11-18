@@ -55,6 +55,13 @@ ACTION_NAMES = {
     "review_justification": "approve",
 }
 
+PRESCHOOL_GLOBAL_READ_ROLES = {
+    "ADMINISTRATOR",
+    "SECRETARY",
+    "PDG",
+    "DIRECTOR",
+}
+
 
 class PreschoolRolePermission(BasePermission):
     def has_permission(self, request, view):
@@ -64,7 +71,7 @@ class PreschoolRolePermission(BasePermission):
         if action_name is None:
             return False
 
-        if role in {"SECRETARY", "PDG", "DIRECTOR"}:
+        if role in PRESCHOOL_GLOBAL_READ_ROLES or user.is_staff:
             return action_name == "read"
 
         if role not in {"STAFF", "SERVICE_MANAGER"}:
@@ -77,7 +84,7 @@ class PreschoolRolePermission(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         user = request.user
-        if user.role in {"SECRETARY", "PDG", "DIRECTOR"}:
+        if user.role in PRESCHOOL_GLOBAL_READ_ROLES or user.is_staff:
             return True
         if user.role == "SERVICE_MANAGER":
             return user.service == "PRESCHOOL"
@@ -87,7 +94,7 @@ class PreschoolRolePermission(BasePermission):
 class PreschoolBaseViewSet(viewsets.ModelViewSet):
     """
     Accès limité au service Préscolaire, avec consultation en lecture seule
-    pour le SG, le PDG et la direction.
+    pour les administrateurs, le secrétariat, le PDG et la direction.
     """
 
     permission_classes = [IsAuthenticated, PreschoolRolePermission]
